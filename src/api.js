@@ -2,8 +2,10 @@ import axios from 'axios'
 
 const baseURL = import.meta.env.VITE_API_URL || ''
 
+// 90 segundos: Render free tarda ~1 min en despertar
 const api = axios.create({
   baseURL,
+  timeout: 90000,
   headers: { 'Content-Type': 'application/json' },
 })
 

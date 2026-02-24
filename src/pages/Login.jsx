@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api'
 
@@ -8,17 +8,31 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingHint, setLoadingHint] = useState(false)
+
+  useEffect(() => {
+    if (!loading) return
+    const t = setTimeout(() => setLoadingHint(true), 15000)
+    return () => clearTimeout(t)
+  }, [loading])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setLoadingHint(false)
     setLoading(true)
     try {
       const { data } = await api.post('/api/auth/login', { username, password })
       setToken(data.token)
       window.location.href = '/'
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al iniciar sesión')
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('El servidor tarda en responder. Si usas Render free, espera ~1 min y reintenta.')
+      } else if (err.message === 'Network Error') {
+        setError('Sin conexión o servidor dormido. Espera 1 min y reintenta.')
+      } else {
+        setError(err.response?.data?.error || 'Error al iniciar sesión')
+      }
     } finally {
       setLoading(false)
     }
@@ -70,6 +84,7 @@ export default function Login() {
           />
         </div>
         {error && <p className="error" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</p>}
+        {loadingHint && <p style={{ marginBottom: '1rem', fontSize: '0.75rem', color: '#71717a' }}>El servidor puede tardar ~1 min en despertar. Espera...</p>}
         <button type="submit" className="primary" style={{ width: '100%' }} disabled={loading}>
           {loading ? 'Entrando...' : 'Entrar'}
         </button>
