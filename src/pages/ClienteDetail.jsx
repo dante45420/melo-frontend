@@ -19,6 +19,8 @@ export default function ClienteDetail() {
   const [promptTipo, setPromptTipo] = useState('imagen')
   const [promptContexto, setPromptContexto] = useState('')
   const [promptGenerado, setPromptGenerado] = useState(null)
+  const [promptError, setPromptError] = useState('')
+  const [promptLoading, setPromptLoading] = useState(false)
   const [mediaModal, setMediaModal] = useState(false)
   const [mediaTipo, setMediaTipo] = useState('imagen')
   const [mediaPrompt, setMediaPrompt] = useState('')
@@ -60,10 +62,15 @@ export default function ClienteDetail() {
 
   const generarPrompt = (e) => {
     e.preventDefault()
-    api.post(`/api/clientes/${id}/generar-prompt`, { tipo: promptTipo, contexto: promptContexto }).then(({ data }) => {
-      setPromptGenerado(data)
-      load()
-    })
+    setPromptError('')
+    setPromptLoading(true)
+    api.post(`/api/clientes/${id}/generar-prompt`, { tipo: promptTipo, contexto: promptContexto })
+      .then(({ data }) => {
+        setPromptGenerado(data)
+        load()
+      })
+      .catch((err) => setPromptError(err.response?.data?.error || 'Error al generar prompt'))
+      .finally(() => setPromptLoading(false))
   }
 
   const generarMedia = (e) => {
@@ -122,8 +129,8 @@ export default function ClienteDetail() {
       <section style={{ marginBottom: '2rem' }}>
         <h3 style={{ marginBottom: '0.75rem' }}>Generar prompt</h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="secondary" onClick={() => { setPromptModal(true); setPromptGenerado(null); }}>Prompt para imagen</button>
-          <button className="secondary" onClick={() => { setPromptModal(true); setPromptTipo('video'); setPromptGenerado(null); }}>Prompt para video</button>
+          <button className="secondary" onClick={() => { setPromptModal(true); setPromptGenerado(null); setPromptError(''); }}>Prompt para imagen</button>
+          <button className="secondary" onClick={() => { setPromptModal(true); setPromptTipo('video'); setPromptGenerado(null); setPromptError(''); }}>Prompt para video</button>
         </div>
         {promptGenerado && (
           <div style={{ marginTop: '1rem', background: '#18181b', padding: '1rem', borderRadius: 8 }}>
@@ -197,8 +204,9 @@ export default function ClienteDetail() {
           <form onSubmit={generarPrompt} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 400 }}>
             <h3 style={{ marginBottom: '1rem' }}>Generar prompt para {promptTipo}</h3>
             <textarea placeholder="Contexto adicional (opcional)" value={promptContexto} onChange={(e) => setPromptContexto(e.target.value)} rows={3} style={{ width: '100%', marginBottom: '1rem' }} />
+            {promptError && <p className="error" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{promptError}</p>}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="submit" className="primary">Generar</button>
+              <button type="submit" className="primary" disabled={promptLoading}>{promptLoading ? 'Generando...' : 'Generar'}</button>
               <button type="button" className="secondary" onClick={() => setPromptModal(false)}>Cerrar</button>
             </div>
           </form>
