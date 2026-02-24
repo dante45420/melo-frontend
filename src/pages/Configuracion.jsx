@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import api from '../api'
 
 export default function Configuracion() {
-  const [defaults, setDefaults] = useState({ prompt: '', imagen: '', video_t2v: '', video_i2v: '' })
+  const [defaults, setDefaults] = useState({ prompt: '', imagen: '', imagen_editar: '', video_t2v: '', video_i2v: '' })
   const [openrouterModels, setOpenrouterModels] = useState([])
   const [falImagenModels, setFalImagenModels] = useState([])
+  const [falImagenEditModels, setFalImagenEditModels] = useState([])
   const [falVideoT2VModels, setFalVideoT2VModels] = useState([])
   const [falVideoI2VModels, setFalVideoI2VModels] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,14 +20,16 @@ export default function Configuracion() {
     const load = async () => {
       setModelsLoading(true)
       try {
-        const [or, img, t2v, i2v] = await Promise.all([
+        const [or, img, imgEdit, t2v, i2v] = await Promise.all([
           api.get('/api/modelos/openrouter').then((r) => r.data.models || []),
           api.get('/api/modelos/fal?category=text-to-image').then((r) => r.data.models || []),
+          api.get('/api/modelos/fal?category=image-to-image').then((r) => r.data.models || []),
           api.get('/api/modelos/fal?category=text-to-video').then((r) => r.data.models || []),
           api.get('/api/modelos/fal?category=image-to-video').then((r) => r.data.models || []),
         ])
         setOpenrouterModels(or)
         setFalImagenModels(img)
+        setFalImagenEditModels(imgEdit)
         setFalVideoT2VModels(t2v)
         setFalVideoI2VModels(i2v)
       } catch (e) {
@@ -89,6 +92,24 @@ export default function Configuracion() {
                 <option value={defaults.imagen}>{defaults.imagen}</option>
               )}
               {falImagenModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>Editar imagen (fal.ai image-to-image)</span>
+            <select
+              value={defaults.imagen_editar || ''}
+              onChange={(e) => setDefaults({ ...defaults, imagen_editar: e.target.value })}
+              style={{ width: '100%', padding: '0.5rem' }}
+              disabled={modelsLoading}
+            >
+              <option value="">— Seleccionar —</option>
+              {defaults.imagen_editar && !falImagenEditModels.some((m) => m.id === defaults.imagen_editar) && (
+                <option value={defaults.imagen_editar}>{defaults.imagen_editar}</option>
+              )}
+              {falImagenEditModels.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>

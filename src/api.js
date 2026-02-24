@@ -12,6 +12,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('melo_auth_token') || import.meta.env.VITE_AUTH_TOKEN
   if (token) config.headers.Authorization = `Bearer ${token}`
+  if (config.data instanceof FormData) delete config.headers['Content-Type']
   console.log('[Melo API]', config.method?.toUpperCase(), config.baseURL + config.url)
   return config
 })

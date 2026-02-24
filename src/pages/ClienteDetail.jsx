@@ -31,12 +31,20 @@ export default function ClienteDetail() {
   const [modelosDefault, setModelosDefault] = useState({})
   const [openrouterModels, setOpenrouterModels] = useState([])
   const [falImagenModels, setFalImagenModels] = useState([])
+  const [falImagenEditModels, setFalImagenEditModels] = useState([])
   const [falVideoT2VModels, setFalVideoT2VModels] = useState([])
   const [falVideoI2VModels, setFalVideoI2VModels] = useState([])
   const [promptModelOverride, setPromptModelOverride] = useState('')
   const [mediaModelOverride, setMediaModelOverride] = useState('')
+  const [mediaModelEditOverride, setMediaModelEditOverride] = useState('')
   const [mediaModelT2VOverride, setMediaModelT2VOverride] = useState('')
   const [mediaModelI2VOverride, setMediaModelI2VOverride] = useState('')
+  const [mediaModoImagen, setMediaModoImagen] = useState('generar')
+  const [mediaImageUrls, setMediaImageUrls] = useState('')
+  const [mediaDuration, setMediaDuration] = useState(10)
+  const [mediaImageUrlStart, setMediaImageUrlStart] = useState('')
+  const [mediaImageUrlEnd, setMediaImageUrlEnd] = useState('')
+  const [mediaUploading, setMediaUploading] = useState(false)
 
   const load = () => {
     return Promise.all([
@@ -58,6 +66,7 @@ export default function ClienteDetail() {
       api.get('/api/modelos/default').then(({ data }) => setModelosDefault(data)),
       api.get('/api/modelos/openrouter').then(({ data }) => setOpenrouterModels(data.models || [])),
       api.get('/api/modelos/fal?category=text-to-image').then(({ data }) => setFalImagenModels(data.models || [])),
+      api.get('/api/modelos/fal?category=image-to-image').then(({ data }) => setFalImagenEditModels(data.models || [])),
       api.get('/api/modelos/fal?category=text-to-video').then(({ data }) => setFalVideoT2VModels(data.models || [])),
       api.get('/api/modelos/fal?category=image-to-video').then(({ data }) => setFalVideoI2VModels(data.models || [])),
     ]).catch(() => {})
@@ -98,14 +107,24 @@ export default function ClienteDetail() {
   const generarMedia = (e) => {
     e.preventDefault()
     setMediaError('')
+    if (mediaTipo === 'imagen' && mediaModoImagen === 'editar' && !mediaImageUrls.trim()) {
+      setMediaError('En modo editar debes indicar al menos una URL de imagen.')
+      return
+    }
     setMediaLoading(true)
     const body = { tipo: mediaTipo, prompt: mediaPrompt }
     if (mediaInstanciaId) body.instancia_id = +mediaInstanciaId
     if (mediaTipo === 'imagen' || mediaTipo === 'carrusel') {
-      if (mediaModelOverride) body.modelo = mediaModelOverride
+      if (mediaTipo === 'imagen' && mediaModoImagen === 'editar') {
+        if (mediaModelEditOverride) body.modelo = mediaModelEditOverride
+        if (mediaImageUrls.trim()) body.image_urls = mediaImageUrls.split(/[\n,]+/).map((u) => u.trim()).filter(Boolean)
+      } else if (mediaModelOverride) body.modelo = mediaModelOverride
     } else if (mediaTipo === 'video') {
       if (mediaModelT2VOverride) body.modelo_t2v = mediaModelT2VOverride
       if (mediaModelI2VOverride) body.modelo_i2v = mediaModelI2VOverride
+      body.duration = mediaDuration
+      if (mediaImageUrlStart.trim()) body.image_url = mediaImageUrlStart.trim()
+      if (mediaImageUrlEnd.trim()) body.tail_image_url = mediaImageUrlEnd.trim()
     }
     api.post(`/api/clientes/${id}/generar-media`, body)
       .then(({ data }) => {
@@ -114,6 +133,29 @@ export default function ClienteDetail() {
       })
       .catch((err) => setMediaError(err.response?.data?.error || 'Error al generar media'))
       .finally(() => setMediaLoading(false))
+  }
+
+  const subirImagenes = async (e) => {
+    const files = e.target.files
+    if (!files?.length) return
+    setMediaUploading(true)
+    try {
+      const form = new FormData()
+      for (let i = 0; i < files.length; i++) form.append('images', files[i])
+      const { data } = await api.post('/api/upload', form)
+      const urls = data.urls || []
+      if (mediaTipo === 'imagen' && mediaModoImagen === 'editar') {
+        setMediaImageUrls((prev) => [...prev.split(/[\n,]+/).map((u) => u.trim()).filter(Boolean), ...urls].join('\n'))
+      } else if (mediaTipo === 'video') {
+        if (urls[0]) setMediaImageUrlStart(urls[0])
+        if (urls[1]) setMediaImageUrlEnd(urls[1])
+      }
+    } catch (err) {
+      setMediaError(err.response?.data?.error || 'Error subiendo imágenes')
+    } finally {
+      setMediaUploading(false)
+      e.target.value = ''
+    }
   }
 
   const aprobarGeneracion = (gid) => {
@@ -193,6 +235,14 @@ export default function ClienteDetail() {
                   <button className="primary" style={{ width: '100%', marginTop: '0.5rem', padding: '0.25rem' }} onClick={() => aprobarGeneracion(g.id)}>Aprobar</button>
                 )}
                 {g.estado === 'aprobada' && <span className="success" style={{ fontSize: '0.75rem' }}>Aprobada</span>}
+                {g.url_asset && (
+                  <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem', flexDirection: 'column' }}>
+                    <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => { setMediaModal(true); setMediaImageUrlStart(g.url_asset); setMediaTipo('video'); }}>Usar para video</button>
+                    {g.tipo === 'imagen' && (
+                      <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => { setMediaModal(true); setMediaImageUrls(g.url_asset); setMediaModoImagen('editar'); setMediaTipo('imagen'); }}>Usar para editar</button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -263,20 +313,71 @@ export default function ClienteDetail() {
               <option value="video">Video</option>
             </select>
             {(mediaTipo === 'imagen' || mediaTipo === 'carrusel') && (
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo (por defecto: {modelosDefault.imagen?.split('/').pop() || 'flux'})</span>
-                <select value={mediaModelOverride} onChange={(e) => setMediaModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
-                  <option value="">Usar por defecto</option>
-                  {falImagenModels.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo (por defecto: {modelosDefault.imagen?.split('/').pop() || 'flux'})</span>
+                  <select value={mediaModelOverride} onChange={(e) => setMediaModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                    <option value="">Usar por defecto</option>
+                    {falImagenModels.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </label>
+                {mediaTipo === 'imagen' && (
+                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modo</span>
+                    <select value={mediaModoImagen} onChange={(e) => setMediaModoImagen(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                      <option value="generar">Generar desde prompt</option>
+                      <option value="editar">Editar imagen(s) con prompt</option>
+                    </select>
+                  </label>
+                )}
+                {mediaTipo === 'imagen' && mediaModoImagen === 'editar' && (
+                  <>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo editar (por defecto: Flux 2 Edit)</span>
+                      <select value={mediaModelEditOverride} onChange={(e) => setMediaModelEditOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                        <option value="">Usar por defecto</option>
+                        {falImagenEditModels.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Imágenes a editar (hasta 4) — subir o pegar URLs</span>
+                      <input type="file" accept="image/*" multiple style={{ display: 'none' }} id="upload-edit" onChange={subirImagenes} />
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                        <button type="button" className="secondary" onClick={() => document.getElementById('upload-edit').click()} disabled={mediaUploading}>{mediaUploading ? 'Subiendo...' : 'Subir imágenes'}</button>
+                      </div>
+                      <textarea value={mediaImageUrls} onChange={(e) => setMediaImageUrls(e.target.value)} placeholder="URLs (una por línea) o sube archivos arriba" rows={2} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }} />
+                    </label>
+                  </>
+                )}
+              </>
             )}
             {mediaTipo === 'video' && (
               <>
                 <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Texto→video (por defecto: {modelosDefault.video_t2v?.split('/').pop() || 'ltx'})</span>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Duración (segundos): {mediaDuration}</span>
+                  <input type="range" min={5} max={20} value={mediaDuration} onChange={(e) => setMediaDuration(+e.target.value)} style={{ width: '100%', marginTop: '0.25rem' }} />
+                </label>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Imágenes para video (inicio + fin) — subir o pegar URLs</span>
+                  <input type="file" accept="image/*" multiple style={{ display: 'none' }} id="upload-video" onChange={subirImagenes} />
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                    <button type="button" className="secondary" onClick={() => document.getElementById('upload-video').click()} disabled={mediaUploading}>{mediaUploading ? 'Subiendo...' : 'Subir imágenes'}</button>
+                  </div>
+                </label>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Imagen inicio (para imagen→video)</span>
+                  <input type="url" value={mediaImageUrlStart} onChange={(e) => setMediaImageUrlStart(e.target.value)} placeholder="https://... o sube arriba" style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }} />
+                </label>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Imagen fin (para transición inicio→fin)</span>
+                  <input type="url" value={mediaImageUrlEnd} onChange={(e) => setMediaImageUrlEnd(e.target.value)} placeholder="https://... o sube como 2ª imagen" style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }} />
+                </label>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Texto→video</span>
                   <select value={mediaModelT2VOverride} onChange={(e) => setMediaModelT2VOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
                     <option value="">Usar por defecto</option>
                     {falVideoT2VModels.map((m) => (
@@ -307,7 +408,7 @@ export default function ClienteDetail() {
             )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="primary" disabled={mediaLoading}>Generar</button>
-              <button type="button" className="secondary" onClick={() => { setMediaModal(false); setMediaResult(null); }}>Cerrar</button>
+              <button type="button" className="secondary" onClick={() => { setMediaModal(false); setMediaResult(null); setMediaModoImagen('generar'); setMediaImageUrls(''); setMediaImageUrlStart(''); setMediaImageUrlEnd(''); setMediaDuration(10); setMediaModelEditOverride(''); }}>Cerrar</button>
             </div>
           </form>
         </div>
