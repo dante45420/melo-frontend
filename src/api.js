@@ -1,19 +1,29 @@
 import axios from 'axios'
 
 const baseURL = import.meta.env.VITE_API_URL || ''
-const authToken = import.meta.env.VITE_AUTH_TOKEN || ''
 
 const api = axios.create({
   baseURL,
-  headers: {
-    'Content-Type': 'application/json',
-    ...(authToken && { Authorization: `Bearer ${authToken}` }),
-  },
+  headers: { 'Content-Type': 'application/json' },
 })
 
-// En producción, el token es obligatorio para llamar al backend
-if (baseURL && !authToken) {
-  console.warn('VITE_AUTH_TOKEN no configurado. Las peticiones al API pueden fallar con 401.')
-}
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('melo_auth_token') || import.meta.env.VITE_AUTH_TOKEN
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err.response?.status === 401 || err.response?.status === 403) {
+      localStorage.removeItem('melo_auth_token')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(err)
+  }
+)
 
 export default api
