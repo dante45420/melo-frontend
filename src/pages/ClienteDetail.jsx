@@ -27,6 +27,16 @@ export default function ClienteDetail() {
   const [mediaInstanciaId, setMediaInstanciaId] = useState(null)
   const [mediaLoading, setMediaLoading] = useState(false)
   const [mediaResult, setMediaResult] = useState(null)
+  const [mediaError, setMediaError] = useState('')
+  const [modelosDefault, setModelosDefault] = useState({})
+  const [openrouterModels, setOpenrouterModels] = useState([])
+  const [falImagenModels, setFalImagenModels] = useState([])
+  const [falVideoT2VModels, setFalVideoT2VModels] = useState([])
+  const [falVideoI2VModels, setFalVideoI2VModels] = useState([])
+  const [promptModelOverride, setPromptModelOverride] = useState('')
+  const [mediaModelOverride, setMediaModelOverride] = useState('')
+  const [mediaModelT2VOverride, setMediaModelT2VOverride] = useState('')
+  const [mediaModelI2VOverride, setMediaModelI2VOverride] = useState('')
 
   const load = () => {
     return Promise.all([
@@ -42,6 +52,16 @@ export default function ClienteDetail() {
     setLoading(true)
     load().finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/api/modelos/default').then(({ data }) => setModelosDefault(data)),
+      api.get('/api/modelos/openrouter').then(({ data }) => setOpenrouterModels(data.models || [])),
+      api.get('/api/modelos/fal?category=text-to-image').then(({ data }) => setFalImagenModels(data.models || [])),
+      api.get('/api/modelos/fal?category=text-to-video').then(({ data }) => setFalVideoT2VModels(data.models || [])),
+      api.get('/api/modelos/fal?category=image-to-video').then(({ data }) => setFalVideoI2VModels(data.models || [])),
+    ]).catch(() => {})
+  }, [])
 
   const aplicarFeedback = (fid) => {
     api.put(`/api/clientes/${id}/feedback/${fid}/aplicar`).then(({ data }) => {
@@ -64,7 +84,9 @@ export default function ClienteDetail() {
     e.preventDefault()
     setPromptError('')
     setPromptLoading(true)
-    api.post(`/api/clientes/${id}/generar-prompt`, { tipo: promptTipo, contexto: promptContexto })
+    const body = { tipo: promptTipo, contexto: promptContexto }
+    if (promptModelOverride) body.modelo = promptModelOverride
+    api.post(`/api/clientes/${id}/generar-prompt`, body)
       .then(({ data }) => {
         setPromptGenerado(data)
         load()
@@ -75,14 +97,22 @@ export default function ClienteDetail() {
 
   const generarMedia = (e) => {
     e.preventDefault()
+    setMediaError('')
     setMediaLoading(true)
     const body = { tipo: mediaTipo, prompt: mediaPrompt }
     if (mediaInstanciaId) body.instancia_id = +mediaInstanciaId
+    if (mediaTipo === 'imagen' || mediaTipo === 'carrusel') {
+      if (mediaModelOverride) body.modelo = mediaModelOverride
+    } else if (mediaTipo === 'video') {
+      if (mediaModelT2VOverride) body.modelo_t2v = mediaModelT2VOverride
+      if (mediaModelI2VOverride) body.modelo_i2v = mediaModelI2VOverride
+    }
     api.post(`/api/clientes/${id}/generar-media`, body)
       .then(({ data }) => {
         setMediaResult(data)
         load()
       })
+      .catch((err) => setMediaError(err.response?.data?.error || 'Error al generar media'))
       .finally(() => setMediaLoading(false))
   }
 
@@ -136,14 +166,15 @@ export default function ClienteDetail() {
           <div style={{ marginTop: '1rem', background: '#18181b', padding: '1rem', borderRadius: 8 }}>
             <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#71717a' }}>Prompt generado:</p>
             <p style={{ whiteSpace: 'pre-wrap' }}>{promptGenerado.contenido}</p>
-            <button className="primary" style={{ marginTop: '0.5rem' }} onClick={() => { setMediaModal(true); setMediaPrompt(promptGenerado.contenido); }}>Generar imagen/video con este prompt</button>
+            {promptGenerado.modelo && <p style={{ fontSize: '0.75rem', color: '#71717a', marginTop: '0.25rem' }}>Modelo: {promptGenerado.modelo}</p>}
+            <button className="primary" style={{ marginTop: '0.5rem' }} onClick={() => { setMediaModal(true); setMediaPrompt(promptGenerado.contenido); setMediaError(''); }}>Generar imagen/video con este prompt</button>
           </div>
         )}
       </section>
 
       <section style={{ marginBottom: '2rem' }}>
         <h3 style={{ marginBottom: '0.75rem' }}>Generar media</h3>
-        <button className="secondary" onClick={() => { setMediaModal(true); setMediaPrompt(''); setMediaResult(null); }}>Generar imagen / carrusel / video</button>
+        <button className="secondary" onClick={() => { setMediaModal(true); setMediaPrompt(''); setMediaResult(null); setMediaError(''); }}>Generar imagen / carrusel / video</button>
       </section>
 
       <section style={{ marginBottom: '2rem' }}>
@@ -203,7 +234,16 @@ export default function ClienteDetail() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <form onSubmit={generarPrompt} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 400 }}>
             <h3 style={{ marginBottom: '1rem' }}>Generar prompt para {promptTipo}</h3>
-            <textarea placeholder="Contexto adicional (opcional)" value={promptContexto} onChange={(e) => setPromptContexto(e.target.value)} rows={3} style={{ width: '100%', marginBottom: '1rem' }} />
+            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo (por defecto: {modelosDefault.prompt || 'gpt-4o-mini'})</span>
+              <select value={promptModelOverride} onChange={(e) => setPromptModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                <option value="">Usar por defecto</option>
+                {openrouterModels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </label>
+            <textarea placeholder="Contexto adicional (opcional)" value={promptContexto} onChange={(e) => setPromptContexto(e.target.value)} rows={3} style={{ width: '100%', marginBottom: '1rem', marginTop: '0.5rem' }} />
             {promptError && <p className="error" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{promptError}</p>}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="primary" disabled={promptLoading}>{promptLoading ? 'Generando...' : 'Generar'}</button>
@@ -222,11 +262,46 @@ export default function ClienteDetail() {
               <option value="carrusel">Carrusel</option>
               <option value="video">Video</option>
             </select>
-            <textarea placeholder="Prompt" value={mediaPrompt} onChange={(e) => setMediaPrompt(e.target.value)} rows={4} required style={{ width: '100%', marginBottom: '1rem' }} />
+            {(mediaTipo === 'imagen' || mediaTipo === 'carrusel') && (
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo (por defecto: {modelosDefault.imagen?.split('/').pop() || 'flux'})</span>
+                <select value={mediaModelOverride} onChange={(e) => setMediaModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                  <option value="">Usar por defecto</option>
+                  {falImagenModels.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {mediaTipo === 'video' && (
+              <>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Texto→video (por defecto: {modelosDefault.video_t2v?.split('/').pop() || 'ltx'})</span>
+                  <select value={mediaModelT2VOverride} onChange={(e) => setMediaModelT2VOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                    <option value="">Usar por defecto</option>
+                    {falVideoT2VModels.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Imagen→video</span>
+                  <select value={mediaModelI2VOverride} onChange={(e) => setMediaModelI2VOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                    <option value="">Usar por defecto</option>
+                    {falVideoI2VModels.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
+            <textarea placeholder="Prompt" value={mediaPrompt} onChange={(e) => setMediaPrompt(e.target.value)} rows={4} required style={{ width: '100%', marginBottom: '1rem', marginTop: '0.25rem' }} />
             {mediaLoading && <p style={{ marginBottom: '0.5rem' }}>Generando...</p>}
+            {mediaError && <p className="error" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{mediaError}</p>}
             {mediaResult && (
               <div style={{ marginBottom: '1rem', padding: '0.5rem', background: '#27272a', borderRadius: 6 }}>
                 <p className="success">Listo. Costo: ${mediaResult.costo_usd?.toFixed(4)}</p>
+                {mediaResult.modelo && <p style={{ fontSize: '0.75rem', color: '#71717a', marginTop: '0.25rem' }}>Modelo: {mediaResult.modelo}</p>}
                 {mediaResult.url && <a href={mediaResult.url} target="_blank" rel="noreferrer">Ver resultado</a>}
               </div>
             )}

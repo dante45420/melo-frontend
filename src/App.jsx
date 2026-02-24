@@ -5,6 +5,7 @@ import ClientesList from './pages/ClientesList'
 import ClienteDetail from './pages/ClienteDetail'
 import Contabilidad from './pages/Contabilidad'
 import Precios from './pages/Precios'
+import Configuracion from './pages/Configuracion'
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuth()
@@ -32,6 +33,7 @@ function Layout() {
         <NavLink to="/" style={({ isActive }) => ({ color: isActive ? '#a78bfa' : '#71717a', textDecoration: 'none' })}>Clientes</NavLink>
         <NavLink to="/contabilidad" style={({ isActive }) => ({ color: isActive ? '#a78bfa' : '#71717a', textDecoration: 'none' })}>Contabilidad</NavLink>
         <NavLink to="/precios" style={({ isActive }) => ({ color: isActive ? '#a78bfa' : '#71717a', textDecoration: 'none' })}>Precios</NavLink>
+        <NavLink to="/configuracion" style={({ isActive }) => ({ color: isActive ? '#a78bfa' : '#71717a', textDecoration: 'none' })}>Modelos</NavLink>
         <div style={{ marginLeft: 'auto' }}>
           <button type="button" className="secondary" onClick={logout}>Salir</button>
         </div>
@@ -54,6 +56,7 @@ export default function App() {
             <Route path="clientes/:id" element={<ClienteDetail />} />
             <Route path="contabilidad" element={<Contabilidad />} />
             <Route path="precios" element={<Precios />} />
+            <Route path="configuracion" element={<Configuracion />} />
           </Route>
         </Routes>
       </AuthProvider>
