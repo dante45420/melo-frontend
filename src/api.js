@@ -12,12 +12,17 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('melo_auth_token') || import.meta.env.VITE_AUTH_TOKEN
   if (token) config.headers.Authorization = `Bearer ${token}`
+  console.log('[Melo API]', config.method?.toUpperCase(), config.baseURL + config.url)
   return config
 })
 
 api.interceptors.response.use(
-  (r) => r,
+  (r) => {
+    console.log('[Melo API]', r.status, r.config.url)
+    return r
+  },
   (err) => {
+    console.error('[Melo API] Error:', err.code, err.message, err.response?.status, err.response?.data)
     if (err.response?.status === 401 || err.response?.status === 403) {
       localStorage.removeItem('melo_auth_token')
       if (window.location.pathname !== '/login') {

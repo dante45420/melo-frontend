@@ -22,10 +22,13 @@ export default function Login() {
     setLoadingHint(false)
     setLoading(true)
     try {
+      console.log('[Melo Login] Enviando POST /api/auth/login')
       const { data } = await api.post('/api/auth/login', { username, password })
+      console.log('[Melo Login] OK, token recibido')
       setToken(data.token)
       window.location.href = '/'
     } catch (err) {
+      console.error('[Melo Login] catch:', err.code, err.message, err.response?.status, err.response?.data)
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
         setError('El servidor tarda en responder. Si usas Render free, espera ~1 min y reintenta.')
       } else if (err.message === 'Network Error') {
