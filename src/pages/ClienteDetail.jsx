@@ -43,6 +43,9 @@ export default function ClienteDetail() {
   const [mediaImageUrls, setMediaImageUrls] = useState('')
   const [mediaDuration, setMediaDuration] = useState(10)
   const [mediaImageUrlStart, setMediaImageUrlStart] = useState('')
+  const [rechazarModal, setRechazarModal] = useState(null)
+  const [rechazarMotivo, setRechazarMotivo] = useState('')
+  const [verEstructuraPrompt, setVerEstructuraPrompt] = useState(false)
   const [mediaImageUrlEnd, setMediaImageUrlEnd] = useState('')
   const [mediaUploading, setMediaUploading] = useState(false)
 
@@ -95,6 +98,7 @@ export default function ClienteDetail() {
     setPromptLoading(true)
     const body = { tipo: promptTipo, contexto: promptContexto }
     if (promptModelOverride) body.modelo = promptModelOverride
+    if (verEstructuraPrompt) body.ver_estructura = true
     api.post(`/api/clientes/${id}/generar-prompt`, body)
       .then(({ data }) => {
         setPromptGenerado(data)
@@ -166,6 +170,22 @@ export default function ClienteDetail() {
     }).catch((err) => alert(err.response?.data?.error || 'Error'))
   }
 
+  const abrirRechazar = (g) => {
+    setRechazarModal(g)
+    setRechazarMotivo('')
+  }
+
+  const rechazarGeneracion = (e) => {
+    e.preventDefault()
+    if (!rechazarModal) return
+    api.post(`/api/clientes/${id}/generaciones/${rechazarModal.id}/rechazar`, { motivo: rechazarMotivo }).then(({ data }) => {
+      setCliente(data.cliente)
+      setRechazarModal(null)
+      setRechazarMotivo('')
+      load()
+    }).catch((err) => alert(err.response?.data?.error || 'Error'))
+  }
+
   const subirFeedback = (e) => {
     e.preventDefault()
     api.post(`/api/clientes/${id}/feedback`, { contenido: feedbackText }).then(() => {
@@ -209,6 +229,14 @@ export default function ClienteDetail() {
             <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#71717a' }}>Prompt generado:</p>
             <p style={{ whiteSpace: 'pre-wrap' }}>{promptGenerado.contenido}</p>
             {promptGenerado.modelo && <p style={{ fontSize: '0.75rem', color: '#71717a', marginTop: '0.25rem' }}>Modelo: {promptGenerado.modelo}</p>}
+            {promptGenerado.estructura && (
+              <details style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                <summary style={{ cursor: 'pointer', color: '#71717a' }}>Estructura enviada a OpenRouter</summary>
+                <pre style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#27272a', borderRadius: 6, overflow: 'auto', maxHeight: 300, whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>
+                  {JSON.stringify(promptGenerado.estructura, null, 2)}
+                </pre>
+              </details>
+            )}
             <button className="primary" style={{ marginTop: '0.5rem' }} onClick={() => { setMediaModal(true); setMediaPrompt(promptGenerado.contenido); setMediaError(''); }}>Generar imagen/video con este prompt</button>
           </div>
         )}
@@ -232,9 +260,18 @@ export default function ClienteDetail() {
               <div style={{ padding: '0.5rem' }}>
                 <span style={{ fontSize: '0.75rem', color: '#71717a' }}>{g.tipo} · ${g.costo_usd?.toFixed(4)}</span>
                 {g.estado === 'pendiente' && (
-                  <button className="primary" style={{ width: '100%', marginTop: '0.5rem', padding: '0.25rem' }} onClick={() => aprobarGeneracion(g.id)}>Aprobar</button>
+                  <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexDirection: 'column' }}>
+                    <button className="primary" style={{ padding: '0.25rem' }} onClick={() => aprobarGeneracion(g.id)}>Aprobar</button>
+                    <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.8rem' }} onClick={() => abrirRechazar(g)}>Rechazar</button>
+                  </div>
                 )}
                 {g.estado === 'aprobada' && <span className="success" style={{ fontSize: '0.75rem' }}>Aprobada</span>}
+                {g.estado === 'rechazada' && (
+                  <div style={{ fontSize: '0.75rem', color: '#f87171' }}>
+                    <span>Rechazada</span>
+                    {g.motivo_rechazo && <p style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: '#a1a1aa' }}>{g.motivo_rechazo}</p>}
+                  </div>
+                )}
                 {g.url_asset && (
                   <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem', flexDirection: 'column' }}>
                     <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => { setMediaModal(true); setMediaImageUrlStart(g.url_asset); setMediaTipo('video'); }}>Usar para video</button>
@@ -266,6 +303,20 @@ export default function ClienteDetail() {
         </div>
       </section>
 
+      {rechazarModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form onSubmit={rechazarGeneracion} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 400 }}>
+            <h3 style={{ marginBottom: '1rem' }}>Rechazar generación</h3>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '1rem' }}>Indica por qué se rechaza (se usará para mejorar el próximo prompt):</p>
+            <textarea value={rechazarMotivo} onChange={(e) => setRechazarMotivo(e.target.value)} placeholder="Ej: Colores muy oscuros, la composición no es buena..." rows={3} style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem' }} />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit" className="secondary" style={{ color: '#f87171' }}>Rechazar</button>
+              <button type="button" className="secondary" onClick={() => { setRechazarModal(null); setRechazarMotivo(''); }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {recargaModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <form onSubmit={recargarCredito} style={{ background: '#18181b', padding: '2rem', borderRadius: 12 }}>
@@ -284,6 +335,10 @@ export default function ClienteDetail() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <form onSubmit={generarPrompt} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 400 }}>
             <h3 style={{ marginBottom: '1rem' }}>Generar prompt para {promptTipo}</h3>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <input type="checkbox" checked={verEstructuraPrompt} onChange={(e) => setVerEstructuraPrompt(e.target.checked)} />
+              <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Ver qué se envía a OpenRouter</span>
+            </label>
             <label style={{ display: 'block', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo (por defecto: {modelosDefault.prompt || 'gpt-4o-mini'})</span>
               <select value={promptModelOverride} onChange={(e) => setPromptModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
