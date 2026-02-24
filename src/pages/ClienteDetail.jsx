@@ -18,6 +18,8 @@ export default function ClienteDetail() {
   const [promptModal, setPromptModal] = useState(false)
   const [promptTipo, setPromptTipo] = useState('imagen')
   const [promptContexto, setPromptContexto] = useState('')
+  const [promptChatMessages, setPromptChatMessages] = useState([])
+  const [promptUserInput, setPromptUserInput] = useState('')
   const [promptGenerado, setPromptGenerado] = useState(null)
   const [promptError, setPromptError] = useState('')
   const [promptLoading, setPromptLoading] = useState(false)
@@ -92,20 +94,46 @@ export default function ClienteDetail() {
     })
   }
 
-  const generarPrompt = (e) => {
-    e.preventDefault()
+  const enviarPromptChat = (solicitarFinal = false) => {
     setPromptError('')
     setPromptLoading(true)
-    const body = { tipo: promptTipo, contexto: promptContexto }
+    const userMsg = solicitarFinal ? '' : promptUserInput.trim()
+    const body = {
+      tipo: promptTipo,
+      contexto: promptContexto || undefined,
+      messages: userMsg ? [...promptChatMessages, { role: 'user', content: userMsg }] : promptChatMessages,
+      solicitar_prompt_final: solicitarFinal,
+    }
     if (promptModelOverride) body.modelo = promptModelOverride
     if (verEstructuraPrompt) body.ver_estructura = true
+    if (userMsg) {
+      setPromptUserInput('')
+      setPromptChatMessages((prev) => [...prev, { role: 'user', content: userMsg }])
+    }
     api.post(`/api/clientes/${id}/generar-prompt`, body)
       .then(({ data }) => {
-        setPromptGenerado(data)
-        load()
+        if (solicitarFinal || data.es_prompt_final) {
+          setPromptGenerado(data)
+          load()
+        } else {
+          setPromptChatMessages((prev) => [...prev, { role: 'assistant', content: data.contenido }])
+        }
       })
-      .catch((err) => setPromptError(err.response?.data?.error || 'Error al generar prompt'))
+      .catch((err) => {
+        if (userMsg) {
+          setPromptChatMessages((prev) => prev.slice(0, -1))
+          setPromptUserInput(userMsg)
+        }
+        setPromptError(err.response?.data?.error || 'Error al generar prompt')
+      })
       .finally(() => setPromptLoading(false))
+  }
+
+  const iniciarPromptChat = (e) => {
+    e.preventDefault()
+    setPromptChatMessages([])
+    setPromptGenerado(null)
+    enviarPromptChat(false)
   }
 
   const generarMedia = (e) => {
@@ -221,8 +249,8 @@ export default function ClienteDetail() {
       <section style={{ marginBottom: '2rem' }}>
         <h3 style={{ marginBottom: '0.75rem' }}>Generar prompt</h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="secondary" onClick={() => { setPromptModal(true); setPromptGenerado(null); setPromptError(''); }}>Prompt para imagen</button>
-          <button className="secondary" onClick={() => { setPromptModal(true); setPromptTipo('video'); setPromptGenerado(null); setPromptError(''); }}>Prompt para video</button>
+          <button className="secondary" onClick={() => { setPromptModal(true); setPromptTipo('imagen'); setPromptChatMessages([]); setPromptGenerado(null); setPromptError(''); }}>Prompt para imagen</button>
+          <button className="secondary" onClick={() => { setPromptModal(true); setPromptTipo('video'); setPromptChatMessages([]); setPromptGenerado(null); setPromptError(''); }}>Prompt para video</button>
         </div>
         {promptGenerado && (
           <div style={{ marginTop: '1rem', background: '#18181b', padding: '1rem', borderRadius: 8 }}>
@@ -333,28 +361,67 @@ export default function ClienteDetail() {
 
       {promptModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <form onSubmit={generarPrompt} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 400 }}>
-            <h3 style={{ marginBottom: '1rem' }}>Generar prompt para {promptTipo}</h3>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <input type="checkbox" checked={verEstructuraPrompt} onChange={(e) => setVerEstructuraPrompt(e.target.checked)} />
-              <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Ver qué se envía a OpenRouter</span>
-            </label>
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo (por defecto: {modelosDefault.prompt || 'gpt-4o-mini'})</span>
-              <select value={promptModelOverride} onChange={(e) => setPromptModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
-                <option value="">Usar por defecto</option>
-                {openrouterModels.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
+          <div style={{ background: '#18181b', padding: '1.5rem', borderRadius: 12, minWidth: 480, maxWidth: 560, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Prompt para {promptTipo}</h3>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '1rem' }}>La IA te hará preguntas para afinar el prompt. Responde en lenguaje natural y cuando estés listo pide el prompt final.</p>
+            {promptChatMessages.length === 0 && !promptGenerado && (
+              <form onSubmit={iniciarPromptChat} style={{ marginBottom: '1rem' }}>
+                {promptLoading && <p style={{ marginBottom: '0.5rem', color: '#71717a' }}>La IA está preparando sus preguntas...</p>}
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Contexto inicial (opcional)</span>
+                  <textarea placeholder="Ej: ventas de verano, 60% descuento, usar modelo..." value={promptContexto} onChange={(e) => setPromptContexto(e.target.value)} rows={2} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }} />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <input type="checkbox" checked={verEstructuraPrompt} onChange={(e) => setVerEstructuraPrompt(e.target.checked)} />
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Ver qué se envía a OpenRouter</span>
+                </label>
+                <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Modelo</span>
+                  <select value={promptModelOverride} onChange={(e) => setPromptModelOverride(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                    <option value="">{modelosDefault.prompt || 'gpt-4o-mini'}</option>
+                    {openrouterModels.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit" className="primary" disabled={promptLoading}>{promptLoading ? 'Iniciando...' : 'Iniciar conversación'}</button>
+              </form>
+            )}
+            {promptChatMessages.length > 0 && !promptGenerado && (
+              <div style={{ flex: 1, overflow: 'auto', marginBottom: '1rem', maxHeight: 280 }}>
+                {promptLoading && <p style={{ marginBottom: '0.5rem', color: '#71717a', fontSize: '0.875rem' }}>Pensando...</p>}
+                {promptChatMessages.map((m, i) => (
+                  <div key={i} style={{ marginBottom: '0.75rem', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#71717a', display: 'block', marginBottom: '0.25rem' }}>{m.role === 'user' ? 'Tú' : 'IA'}</span>
+                    <div style={{ display: 'inline-block', padding: '0.5rem 0.75rem', borderRadius: 8, background: m.role === 'user' ? '#3b82f6' : '#27272a', maxWidth: '90%', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{m.content}</div>
+                  </div>
                 ))}
-              </select>
-            </label>
-            <textarea placeholder="Contexto adicional (opcional)" value={promptContexto} onChange={(e) => setPromptContexto(e.target.value)} rows={3} style={{ width: '100%', marginBottom: '1rem', marginTop: '0.5rem' }} />
-            {promptError && <p className="error" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{promptError}</p>}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="submit" className="primary" disabled={promptLoading}>{promptLoading ? 'Generando...' : 'Generar'}</button>
-              <button type="button" className="secondary" onClick={() => setPromptModal(false)}>Cerrar</button>
-            </div>
-          </form>
+              </div>
+            )}
+            {promptChatMessages.length > 0 && !promptGenerado && (
+              <form onSubmit={(e) => { e.preventDefault(); enviarPromptChat(false); }} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <input value={promptUserInput} onChange={(e) => setPromptUserInput(e.target.value)} placeholder="Responde aquí en lenguaje natural..." style={{ flex: 1, padding: '0.5rem' }} disabled={promptLoading} />
+                <button type="submit" className="secondary" disabled={promptLoading || !promptUserInput.trim()}>Enviar</button>
+                <button type="button" className="primary" onClick={() => enviarPromptChat(true)} disabled={promptLoading}>Obtener prompt final</button>
+              </form>
+            )}
+            {promptGenerado && (
+              <div style={{ marginTop: '1rem', padding: '1rem', background: '#27272a', borderRadius: 8 }}>
+                <p style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#71717a' }}>Prompt generado:</p>
+                <p style={{ whiteSpace: 'pre-wrap' }}>{promptGenerado.contenido}</p>
+                {promptGenerado.modelo && <p style={{ fontSize: '0.75rem', color: '#71717a', marginTop: '0.25rem' }}>Modelo: {promptGenerado.modelo}</p>}
+                {promptGenerado.estructura && (
+                  <details style={{ marginTop: '1rem', fontSize: '0.8rem' }}>
+                    <summary style={{ cursor: 'pointer', color: '#71717a' }}>Estructura enviada a OpenRouter</summary>
+                    <pre style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#18181b', borderRadius: 6, overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{JSON.stringify(promptGenerado.estructura, null, 2)}</pre>
+                  </details>
+                )}
+                <button className="primary" style={{ marginTop: '0.75rem' }} onClick={() => { setMediaModal(true); setMediaPrompt(promptGenerado.contenido); setMediaError(''); setPromptModal(false); }}>Generar imagen/video con este prompt</button>
+              </div>
+            )}
+            {promptError && <p className="error" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>{promptError}</p>}
+            <button type="button" className="secondary" style={{ marginTop: '1rem' }} onClick={() => { setPromptModal(false); setPromptChatMessages([]); setPromptGenerado(null); setPromptError(''); }}>Cerrar</button>
+          </div>
         </div>
       )}
 
