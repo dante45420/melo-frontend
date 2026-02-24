@@ -67,6 +67,19 @@ export default function ClienteDetail() {
   }, [id])
 
   useEffect(() => {
+    const procesando = generaciones.filter((g) => g.estado === 'procesando')
+    if (procesando.length > 0 && id) {
+      const gid = procesando[0].id
+      const t = setInterval(() => {
+        api.get(`/api/clientes/${id}/generaciones/${gid}/result`).then((res) => {
+          if (res.status !== 202) load()
+        }).catch(() => {})
+      }, 8000)
+      return () => clearInterval(t)
+    }
+  }, [generaciones, id])
+
+  useEffect(() => {
     Promise.all([
       api.get('/api/modelos/default').then(({ data }) => setModelosDefault(data)),
       api.get('/api/modelos/openrouter').then(({ data }) => setOpenrouterModels(data.models || [])),
@@ -159,12 +172,45 @@ export default function ClienteDetail() {
       if (mediaImageUrlEnd.trim()) body.tail_image_url = mediaImageUrlEnd.trim()
     }
     api.post(`/api/clientes/${id}/generar-media`, body)
-      .then(({ data }) => {
-        setMediaResult(data)
-        load()
+      .then((res) => {
+        const { data, status } = res
+        if (status === 202 && data?.status === 'procesando' && data?.generacion_id) {
+          pollVideoResult(data.generacion_id)
+        } else {
+          setMediaResult(data)
+          load()
+          setMediaLoading(false)
+        }
       })
-      .catch((err) => setMediaError(err.response?.data?.error || 'Error al generar media'))
-      .finally(() => setMediaLoading(false))
+      .catch((err) => {
+        setMediaError(err.response?.data?.error || 'Error al generar media')
+        setMediaLoading(false)
+      })
+  }
+
+  const pollVideoResult = (gid, attempt = 0) => {
+    const maxAttempts = 72
+    if (attempt >= maxAttempts) {
+      setMediaError('El video tardó demasiado. Revisa la lista de generaciones.')
+      setMediaLoading(false)
+      load()
+      return
+    }
+    api.get(`/api/clientes/${id}/generaciones/${gid}/result`)
+      .then((res) => {
+        const { data, status } = res
+        if (status === 202) {
+          setTimeout(() => pollVideoResult(gid, attempt + 1), 5000)
+        } else {
+          setMediaResult(data)
+          load()
+          setMediaLoading(false)
+        }
+      })
+      .catch((err) => {
+        setMediaError(err.response?.data?.error || 'Error al obtener resultado')
+        setMediaLoading(false)
+      })
   }
 
   const subirImagenes = async (e) => {
@@ -286,7 +332,8 @@ export default function ClienteDetail() {
                 <div style={{ width: '100%', aspectRatio: '1', background: '#27272a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a' }}>Video</div>
               )}
               <div style={{ padding: '0.5rem' }}>
-                <span style={{ fontSize: '0.75rem', color: '#71717a' }}>{g.tipo} · ${g.costo_usd?.toFixed(4)}</span>
+                <span style={{ fontSize: '0.75rem', color: '#71717a' }}>{g.tipo} · {g.estado === 'procesando' ? 'Generando...' : `$${g.costo_usd?.toFixed(4)}`}</span>
+                {g.estado === 'procesando' && <span style={{ fontSize: '0.75rem', color: '#a78bfa' }}>Video en proceso</span>}
                 {g.estado === 'pendiente' && (
                   <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexDirection: 'column' }}>
                     <button className="primary" style={{ padding: '0.25rem' }} onClick={() => aprobarGeneracion(g.id)}>Aprobar</button>
@@ -519,7 +566,7 @@ export default function ClienteDetail() {
               </>
             )}
             <textarea placeholder="Prompt" value={mediaPrompt} onChange={(e) => setMediaPrompt(e.target.value)} rows={4} required style={{ width: '100%', marginBottom: '1rem', marginTop: '0.25rem' }} />
-            {mediaLoading && <p style={{ marginBottom: '0.5rem' }}>Generando...</p>}
+            {mediaLoading && <p style={{ marginBottom: '0.5rem', color: '#71717a' }}>{mediaTipo === 'video' ? 'Generando video... (puede tardar 1-2 min)' : 'Generando...'}</p>}
             {mediaError && <p className="error" style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>{mediaError}</p>}
             {mediaResult && (
               <div style={{ marginBottom: '1rem', padding: '0.5rem', background: '#27272a', borderRadius: 6 }}>
