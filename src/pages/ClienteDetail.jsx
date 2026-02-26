@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import api from '../api'
 
 export default function ClienteDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [cliente, setCliente] = useState(null)
   const [prompts, setPrompts] = useState([])
   const [feedbacks, setFeedbacks] = useState([])
@@ -50,6 +51,28 @@ export default function ClienteDetail() {
   const [verEstructuraPrompt, setVerEstructuraPrompt] = useState(false)
   const [mediaImageUrlEnd, setMediaImageUrlEnd] = useState('')
   const [mediaUploading, setMediaUploading] = useState(false)
+  const [mediaTextoOverlay, setMediaTextoOverlay] = useState('')
+  const [contextoModal, setContextoModal] = useState(false)
+  const [contextoChatMessages, setContextoChatMessages] = useState([])
+  const [contextoUserInput, setContextoUserInput] = useState('')
+  const [contextoLoading, setContextoLoading] = useState(false)
+  const [agregarTextoModal, setAgregarTextoModal] = useState(null)
+  const [agregarTextoInput, setAgregarTextoInput] = useState('')
+  const [agregarTextoLoading, setAgregarTextoLoading] = useState(false)
+  const [contextoGuardado, setContextoGuardado] = useState(false)
+  const [verPerfilActual, setVerPerfilActual] = useState(false)
+  const [perfilActual, setPerfilActual] = useState(null)
+  const [notaModal, setNotaModal] = useState(false)
+  const [notaTexto, setNotaTexto] = useState('')
+  const [editarNotaIdx, setEditarNotaIdx] = useState(null)
+  const [editarNotaTexto, setEditarNotaTexto] = useState('')
+  const [restarModal, setRestarModal] = useState(false)
+  const [restarMonto, setRestarMonto] = useState('')
+  const [restarNota, setRestarNota] = useState('')
+  const [consumoManualModal, setConsumoManualModal] = useState(false)
+  const [consumoManualTipo, setConsumoManualTipo] = useState('imagen')
+  const [consumoManualCosto, setConsumoManualCosto] = useState('')
+  const [precios, setPrecios] = useState({ imagen: 0, carrusel: 0, video: 0 })
 
   const load = () => {
     return Promise.all([
@@ -65,6 +88,18 @@ export default function ClienteDetail() {
     setLoading(true)
     load().finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    const ctx = location.state?.abrirPromptConContexto
+    if (ctx && cliente) {
+      setPromptContexto(ctx)
+      setPromptModal(true)
+      setPromptTipo('imagen')
+      setPromptChatMessages([])
+      setPromptGenerado(null)
+      navigate(`/clientes/${id}`, { replace: true, state: {} })
+    }
+  }, [location.state, cliente, id, navigate])
 
   useEffect(() => {
     const procesando = generaciones.filter((g) => g.estado === 'procesando')
@@ -87,6 +122,7 @@ export default function ClienteDetail() {
       api.get('/api/modelos/fal?category=image-to-image').then(({ data }) => setFalImagenEditModels(data.models || [])),
       api.get('/api/modelos/fal?category=text-to-video').then(({ data }) => setFalVideoT2VModels(data.models || [])),
       api.get('/api/modelos/fal?category=image-to-video').then(({ data }) => setFalVideoI2VModels(data.models || [])),
+      api.get('/api/precios').then(({ data }) => setPrecios(data || { imagen: 0, carrusel: 0, video: 0 })),
     ]).catch(() => {})
   }, [])
 
@@ -105,6 +141,56 @@ export default function ClienteDetail() {
       setRecargaMonto('')
       setRecargaNota('')
     })
+  }
+
+  const restarCredito = (e) => {
+    e.preventDefault()
+    api.post(`/api/clientes/${id}/restar-credito`, { monto: +restarMonto, nota: restarNota }).then(({ data }) => {
+      setCliente(data)
+      setRestarModal(false)
+      setRestarMonto('')
+      setRestarNota('')
+    }).catch((err) => alert(err.response?.data?.error || 'Error'))
+  }
+
+  const agregarNota = (e) => {
+    e.preventDefault()
+    if (!notaTexto.trim()) return
+    api.post(`/api/clientes/${id}/notas`, { texto: notaTexto.trim() }).then(({ data }) => {
+      setCliente(data)
+      setNotaModal(false)
+      setNotaTexto('')
+    }).catch((err) => alert(err.response?.data?.error || 'Error'))
+  }
+
+  const editarNota = (e) => {
+    e.preventDefault()
+    if (editarNotaIdx == null || !editarNotaTexto.trim()) return
+    api.put(`/api/clientes/${id}/notas/${editarNotaIdx}`, { texto: editarNotaTexto.trim() }).then(({ data }) => {
+      setCliente(data)
+      setEditarNotaIdx(null)
+      setEditarNotaTexto('')
+    }).catch((err) => alert(err.response?.data?.error || 'Error'))
+  }
+
+  const borrarNota = (idx) => {
+    if (!confirm('¿Borrar esta nota?')) return
+    api.delete(`/api/clientes/${id}/notas/${idx}`).then(({ data }) => setCliente(data)).catch((err) => alert(err.response?.data?.error || 'Error'))
+  }
+
+  const consumoManual = (e) => {
+    e.preventDefault()
+    const costo = consumoManualCosto === '' ? 0 : parseFloat(consumoManualCosto)
+    if (isNaN(costo) || costo < 0) {
+      alert('Indica el costo en USD (puede ser 0 si no pagaste)')
+      return
+    }
+    api.post(`/api/clientes/${id}/consumo-manual`, { tipo: consumoManualTipo, costo_usd: costo }).then(({ data }) => {
+      setCliente(data)
+      setConsumoManualModal(false)
+      setConsumoManualCosto('')
+      setConsumoManualTipo('imagen')
+    }).catch((err) => alert(err.response?.data?.error || 'Error'))
   }
 
   const enviarPromptChat = (solicitarFinal = false) => {
@@ -175,7 +261,7 @@ export default function ClienteDetail() {
       .then((res) => {
         const { data, status } = res
         if (status === 202 && data?.status === 'procesando' && data?.generacion_id) {
-          pollVideoResult(data.generacion_id)
+          pollVideoResult(data.generacion_id, 0, mediaTextoOverlay)
         } else {
           setMediaResult(data)
           load()
@@ -188,7 +274,7 @@ export default function ClienteDetail() {
       })
   }
 
-  const pollVideoResult = (gid, attempt = 0) => {
+  const pollVideoResult = (gid, attempt = 0, textoOverlay = '') => {
     const maxAttempts = 72
     if (attempt >= maxAttempts) {
       setMediaError('El video tardó demasiado. Revisa la lista de generaciones.')
@@ -200,11 +286,25 @@ export default function ClienteDetail() {
       .then((res) => {
         const { data, status } = res
         if (status === 202) {
-          setTimeout(() => pollVideoResult(gid, attempt + 1), 5000)
+          setTimeout(() => pollVideoResult(gid, attempt + 1, textoOverlay), 5000)
         } else {
-          setMediaResult(data)
-          load()
-          setMediaLoading(false)
+          if (textoOverlay.trim()) {
+            api.post(`/api/clientes/${id}/generaciones/${gid}/agregar-texto`, { texto: textoOverlay.trim() })
+              .then(({ data: addData }) => {
+                setMediaResult({ ...data, url: addData?.url_asset || data.url, costo_usd: data.costo_usd, modelo: data.modelo })
+                load()
+              })
+              .catch((err) => {
+                setMediaResult(data)
+                setMediaError(err.response?.data?.error || 'Video listo pero no se pudo añadir texto.')
+                load()
+              })
+              .finally(() => setMediaLoading(false))
+          } else {
+            setMediaResult(data)
+            load()
+            setMediaLoading(false)
+          }
         }
       })
       .catch((err) => {
@@ -268,15 +368,83 @@ export default function ClienteDetail() {
     })
   }
 
+  const enviarContextoChat = (guardar = false) => {
+    const msg = contextoUserInput.trim() || (guardar ? 'Guardar los cambios' : '')
+    if (!msg) return
+    setContextoLoading(true)
+    setContextoUserInput('')
+    const prevMsg = msg
+    setContextoChatMessages((prev) => [...prev, { role: 'user', content: prevMsg }])
+    setContextoGuardado(false)
+    api.post(`/api/clientes/${id}/contexto-chat`, {
+      message: prevMsg,
+      messages: contextoChatMessages,
+      guardar,
+    })
+      .then(({ data }) => {
+        const content = data.guardado && data.contexto_actualizado
+          ? `✓ Perfil guardado correctamente en la base de datos.\n\n${data.respuesta}`
+          : data.respuesta
+        setContextoChatMessages((prev) => [...prev, { role: 'assistant', content }])
+        if (data.guardado && data.contexto_actualizado) {
+          setContextoGuardado(true)
+          setCliente((c) => (c ? { ...c, contexto_perfil: data.contexto_actualizado } : c))
+          setPerfilActual(data.contexto_actualizado)
+          load()
+        }
+      })
+      .catch((err) => {
+        setContextoChatMessages((prev) => prev.slice(0, -1))
+        setContextoUserInput(prevMsg)
+        alert(err.response?.data?.error || 'Error')
+      })
+      .finally(() => setContextoLoading(false))
+  }
+
+  const cargarPerfilActual = () => {
+    setVerPerfilActual(true)
+    api.get(`/api/clientes/${id}/contexto`).then(({ data }) => setPerfilActual(data.contexto)).catch(() => setPerfilActual(null))
+  }
+
+  const aplicarTextoVideo = (e) => {
+    e.preventDefault()
+    if (!agregarTextoModal || !agregarTextoInput.trim()) return
+    setAgregarTextoLoading(true)
+    api.post(`/api/clientes/${id}/generaciones/${agregarTextoModal.id}/agregar-texto`, {
+      texto: agregarTextoInput.trim(),
+    })
+      .then(() => {
+        setAgregarTextoModal(null)
+        setAgregarTextoInput('')
+        load()
+      })
+      .catch((err) => alert(err.response?.data?.error || 'Error'))
+      .finally(() => setAgregarTextoLoading(false))
+  }
+
+  const abrirMediaDesdePrompt = (promptData) => {
+    setMediaModal(true)
+    setMediaPrompt(promptData.contenido)
+    setMediaTipo(promptData.tipo || 'imagen')
+    setMediaError('')
+    setPromptModal(false)
+    if (promptData.texto_overlay && promptData.tipo === 'video') {
+      setMediaTextoOverlay(promptData.texto_overlay)
+    }
+  }
+
   if (loading || !cliente) return <p>Cargando...</p>
 
   return (
     <div>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
         <button className="secondary" onClick={() => navigate('/')}>← Volver</button>
-        <div>
-          <span className={cliente.credito_balance < 20 ? 'low-credit' : ''} style={{ marginRight: '1rem', fontWeight: 600 }}>Créditos: {cliente.credito_balance}</span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className={cliente.credito_balance < 20 ? 'low-credit' : ''} style={{ fontWeight: 600 }}>Créditos: {cliente.credito_balance}</span>
           <button className="primary" onClick={() => setRecargaModal(true)}>Agregar crédito</button>
+          <button className="secondary" style={{ color: '#f87171' }} onClick={() => { setConsumoManualModal(true); setConsumoManualCosto(''); setConsumoManualTipo('imagen'); }}>Registrar generación manual</button>
+          <button className="secondary" style={{ color: '#a1a1aa', fontSize: '0.85rem' }} onClick={() => { setRestarModal(true); setRestarMonto(''); setRestarNota(''); }}>Restar crédito (ajuste)</button>
+          <button className="secondary" onClick={() => { setNotaModal(true); setNotaTexto(''); }}>Agregar nota</button>
         </div>
       </div>
 
@@ -284,12 +452,47 @@ export default function ClienteDetail() {
       <p style={{ color: '#71717a', marginBottom: '1.5rem' }}>{cliente.empresa} · {cliente.industria}</p>
 
       <section style={{ marginBottom: '2rem' }}>
-        <h3 style={{ marginBottom: '0.75rem' }}>Info general</h3>
-        <div style={{ background: '#18181b', padding: '1rem', borderRadius: 8 }}>
+        <h3 style={{ marginBottom: '0.75rem' }}>Perfil del cliente</h3>
+        <div style={{ background: '#18181b', padding: '1rem', borderRadius: 8, marginBottom: '0.5rem' }}>
           <p><strong>Tono:</strong> {cliente.tono_voz || '—'}</p>
           <p><strong>Colores:</strong> {cliente.colores_preferidos || '—'}</p>
           <p><strong>Descripción:</strong> {cliente.descripcion_negocio || '—'}</p>
+          {cliente.contexto_perfil && (
+            <details style={{ marginTop: '1rem', fontSize: '0.875rem' }}>
+              <summary style={{ cursor: 'pointer', color: '#a78bfa' }}>Ver perfil ampliado (por secciones)</summary>
+              <pre style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#27272a', borderRadius: 6, overflow: 'auto', maxHeight: 200, fontSize: '0.75rem' }}>{JSON.stringify(cliente.contexto_perfil, null, 2)}</pre>
+            </details>
+          )}
         </div>
+        <button className="secondary" onClick={() => { setContextoModal(true); setContextoChatMessages([]); setContextoUserInput(''); setContextoGuardado(false); setVerPerfilActual(false); setPerfilActual(cliente.contexto_perfil || null); }}>Editar perfil con IA</button>
+      </section>
+
+      <section style={{ marginBottom: '2rem' }}>
+        <h3 style={{ marginBottom: '0.75rem' }}>Plan de marketing</h3>
+        <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '1rem' }}>Objetivos, campañas y métricas. Objetivos colapsables.</p>
+        <button className="primary" onClick={() => navigate(`/clientes/${id}/plan`)}>Ver plan y objetivos</button>
+      </section>
+
+      <section style={{ marginBottom: '2rem' }}>
+        <h3 style={{ marginBottom: '0.75rem' }}>Notas</h3>
+        {cliente.notas?.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            {cliente.notas.map((n, idx) => (
+              <div key={idx} style={{ padding: '0.75rem', background: '#18181b', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <div>
+                  <p style={{ margin: 0 }}>{n.texto}</p>
+                  {n.created_at && <span style={{ fontSize: '0.7rem', color: '#71717a' }}>{new Date(n.created_at).toLocaleString()}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  <button type="button" className="secondary" style={{ padding: '0.25rem', fontSize: '0.75rem' }} onClick={() => { setEditarNotaIdx(idx); setEditarNotaTexto(n.texto || ''); }}>Editar</button>
+                  <button type="button" className="secondary" style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#f87171' }} onClick={() => borrarNota(idx)}>Borrar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: '#71717a', marginBottom: '0.5rem' }}>Sin notas</p>
+        )}
       </section>
 
       <section style={{ marginBottom: '2rem' }}>
@@ -311,7 +514,7 @@ export default function ClienteDetail() {
                 </pre>
               </details>
             )}
-            <button className="primary" style={{ marginTop: '0.5rem' }} onClick={() => { setMediaModal(true); setMediaPrompt(promptGenerado.contenido); setMediaError(''); }}>Generar imagen/video con este prompt</button>
+            <button className="primary" style={{ marginTop: '0.5rem' }} onClick={() => abrirMediaDesdePrompt({ ...promptGenerado, tipo: promptTipo })}>Generar imagen/video con este prompt</button>
           </div>
         )}
       </section>
@@ -327,7 +530,11 @@ export default function ClienteDetail() {
           {generaciones.slice(0, 12).map((g) => (
             <div key={g.id} style={{ background: '#18181b', borderRadius: 8, overflow: 'hidden', border: '1px solid #27272a' }}>
               {g.url_asset ? (
-                <img src={g.url_asset} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />
+                g.tipo === 'video' ? (
+                  <video src={g.url_asset} controls style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />
+                ) : (
+                  <img src={g.url_asset} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />
+                )
               ) : (
                 <div style={{ width: '100%', aspectRatio: '1', background: '#27272a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a' }}>Video</div>
               )}
@@ -349,6 +556,9 @@ export default function ClienteDetail() {
                 )}
                 {g.url_asset && (
                   <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem', flexDirection: 'column' }}>
+                    {g.tipo === 'video' && (
+                      <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => { setAgregarTextoModal(g); setAgregarTextoInput(''); }}>Añadir texto</button>
+                    )}
                     <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => { setMediaModal(true); setMediaImageUrlStart(g.url_asset); setMediaTipo('video'); }}>Usar para video</button>
                     {g.tipo === 'imagen' && (
                       <button className="secondary" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => { setMediaModal(true); setMediaImageUrls(g.url_asset); setMediaModoImagen('editar'); setMediaTipo('imagen'); }}>Usar para editar</button>
@@ -401,6 +611,75 @@ export default function ClienteDetail() {
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="primary">Añadir</button>
               <button type="button" className="secondary" onClick={() => setRecargaModal(false)}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {consumoManualModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form onSubmit={consumoManual} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 360 }}>
+            <h3 style={{ marginBottom: '1rem' }}>Registrar generación manual</h3>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '1rem' }}>Generaste imagen, video o carrusel en otra plataforma. Se descontarán créditos según la tarifa y se registrará la utilidad.</p>
+            <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Saldo actual: <strong>{cliente.credito_balance}</strong></p>
+            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Tipo</span>
+              <select value={consumoManualTipo} onChange={(e) => setConsumoManualTipo(e.target.value)} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }}>
+                <option value="imagen">Imagen ({precios.imagen || 0} créditos)</option>
+                <option value="carrusel">Carrusel ({precios.carrusel || 0} créditos)</option>
+                <option value="video">Video ({precios.video || 0} créditos)</option>
+              </select>
+            </label>
+            <label style={{ display: 'block', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Costo en USD que pagaste (ej: en Midjourney, Runway...)</span>
+              <input type="number" placeholder="0.00" value={consumoManualCosto} onChange={(e) => setConsumoManualCosto(e.target.value)} min={0} step={0.01} style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }} />
+            </label>
+            <p style={{ fontSize: '0.8rem', color: '#71717a', marginBottom: '1rem' }}>Se descontarán {precios[consumoManualTipo] || 0} créditos y se registrará la utilidad en contabilidad.</p>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit" className="primary" style={{ color: '#f87171' }}>Registrar</button>
+              <button type="button" className="secondary" onClick={() => { setConsumoManualModal(false); setConsumoManualCosto(''); }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {restarModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form onSubmit={restarCredito} style={{ background: '#18181b', padding: '2rem', borderRadius: 12 }}>
+            <h3 style={{ marginBottom: '1rem' }}>Restar crédito (ajuste manual)</h3>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '0.5rem' }}>Usar solo para ajustes puntuales. Para generaciones externas, usa &quot;Registrar generación manual&quot;.</p>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '0.5rem' }}>Saldo actual: {cliente.credito_balance}</p>
+            <input type="number" placeholder="Monto a restar" value={restarMonto} onChange={(e) => setRestarMonto(e.target.value)} required min={0.01} step={0.01} style={{ marginBottom: '0.5rem', width: '100%' }} />
+            <input placeholder="Motivo (opcional)" value={restarNota} onChange={(e) => setRestarNota(e.target.value)} style={{ width: '100%', marginBottom: '1rem' }} />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit" className="primary" style={{ color: '#f87171' }}>Restar</button>
+              <button type="button" className="secondary" onClick={() => setRestarModal(false)}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editarNotaIdx != null && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form onSubmit={editarNota} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 360 }}>
+            <h3 style={{ marginBottom: '1rem' }}>Editar nota</h3>
+            <textarea placeholder="Escribe la nota..." value={editarNotaTexto} onChange={(e) => setEditarNotaTexto(e.target.value)} rows={3} required style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem' }} />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit" className="primary" disabled={!editarNotaTexto.trim()}>Guardar</button>
+              <button type="button" className="secondary" onClick={() => { setEditarNotaIdx(null); setEditarNotaTexto(''); }}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {notaModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form onSubmit={agregarNota} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 360 }}>
+            <h3 style={{ marginBottom: '1rem' }}>Agregar nota</h3>
+            <textarea placeholder="Escribe la nota..." value={notaTexto} onChange={(e) => setNotaTexto(e.target.value)} rows={3} required style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem' }} />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit" className="primary" disabled={!notaTexto.trim()}>Guardar</button>
+              <button type="button" className="secondary" onClick={() => setNotaModal(false)}>Cancelar</button>
             </div>
           </form>
         </div>
@@ -463,7 +742,7 @@ export default function ClienteDetail() {
                     <pre style={{ marginTop: '0.5rem', padding: '0.75rem', background: '#18181b', borderRadius: 6, overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', fontSize: '0.75rem' }}>{JSON.stringify(promptGenerado.estructura, null, 2)}</pre>
                   </details>
                 )}
-                <button className="primary" style={{ marginTop: '0.75rem' }} onClick={() => { setMediaModal(true); setMediaPrompt(promptGenerado.contenido); setMediaError(''); setPromptModal(false); }}>Generar imagen/video con este prompt</button>
+                <button className="primary" style={{ marginTop: '0.75rem' }} onClick={() => abrirMediaDesdePrompt({ ...promptGenerado, tipo: promptTipo })}>Generar imagen/video con este prompt</button>
               </div>
             )}
             {promptError && <p className="error" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>{promptError}</p>}
@@ -563,6 +842,11 @@ export default function ClienteDetail() {
                     ))}
                   </select>
                 </label>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', color: '#71717a' }}>Texto a sobreponer (opcional)</span>
+                  <input type="text" value={mediaTextoOverlay} onChange={(e) => setMediaTextoOverlay(e.target.value)} placeholder="Ej: 60% OFF, Nuevo producto" style={{ width: '100%', marginTop: '0.25rem', padding: '0.5rem' }} />
+                  <span style={{ fontSize: '0.7rem', color: '#71717a' }}>Se añade al video después de generarlo</span>
+                </label>
               </>
             )}
             <textarea placeholder="Prompt" value={mediaPrompt} onChange={(e) => setMediaPrompt(e.target.value)} rows={4} required style={{ width: '100%', marginBottom: '1rem', marginTop: '0.25rem' }} />
@@ -577,7 +861,54 @@ export default function ClienteDetail() {
             )}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="primary" disabled={mediaLoading}>Generar</button>
-              <button type="button" className="secondary" onClick={() => { setMediaModal(false); setMediaResult(null); setMediaModoImagen('generar'); setMediaImageUrls(''); setMediaImageUrlStart(''); setMediaImageUrlEnd(''); setMediaDuration(10); setMediaModelEditOverride(''); }}>Cerrar</button>
+              <button type="button" className="secondary" onClick={() => { setMediaModal(false); setMediaResult(null); setMediaModoImagen('generar'); setMediaImageUrls(''); setMediaImageUrlStart(''); setMediaImageUrlEnd(''); setMediaDuration(10); setMediaTextoOverlay(''); setMediaModelEditOverride(''); }}>Cerrar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {contextoModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: '#18181b', padding: '1.5rem', borderRadius: 12, minWidth: 460, maxWidth: 560, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Editar perfil con IA</h3>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '1rem' }}>Conversa con la IA para actualizar la información por secciones (empresa, estilo, últimos posts, etc.). Di "guardar" cuando termines.</p>
+            {contextoGuardado && (
+              <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22c55e', borderRadius: 8, marginBottom: '1rem', color: '#22c55e', fontSize: '0.875rem' }}>✓ Perfil guardado correctamente en la base de datos</div>
+            )}
+            <button type="button" className="secondary" style={{ marginBottom: '1rem', alignSelf: 'flex-start' }} onClick={cargarPerfilActual}>Ver perfil actual en BD</button>
+            {(verPerfilActual || perfilActual) && (
+              <details open={!!perfilActual} style={{ marginBottom: '1rem', background: '#27272a', padding: '1rem', borderRadius: 8 }}>
+                <summary style={{ cursor: 'pointer', color: '#a78bfa' }}>Perfil guardado en la base de datos</summary>
+                <pre style={{ marginTop: '0.5rem', margin: 0, fontSize: '0.75rem', overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap' }}>{perfilActual ? JSON.stringify(perfilActual, null, 2) : 'Cargando...'}</pre>
+              </details>
+            )}
+            <div style={{ flex: 1, overflow: 'auto', marginBottom: '1rem', maxHeight: 240 }}>
+              {contextoChatMessages.map((m, i) => (
+                <div key={i} style={{ marginBottom: '0.75rem', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#71717a', display: 'block', marginBottom: '0.25rem' }}>{m.role === 'user' ? 'Tú' : 'IA'}</span>
+                  <div style={{ display: 'inline-block', padding: '0.5rem 0.75rem', borderRadius: 8, background: m.role === 'user' ? '#3b82f6' : '#27272a', maxWidth: '90%', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{m.content}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input value={contextoUserInput} onChange={(e) => setContextoUserInput(e.target.value)} placeholder="Escribe aquí..." style={{ flex: 1, padding: '0.5rem' }} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), enviarContextoChat(false))} disabled={contextoLoading} />
+              <button type="button" className="secondary" onClick={() => enviarContextoChat(false)} disabled={contextoLoading || !contextoUserInput.trim()}>Enviar</button>
+              <button type="button" className="primary" onClick={() => enviarContextoChat(true)} disabled={contextoLoading}>Guardar</button>
+            </div>
+            <button type="button" className="secondary" style={{ marginTop: '1rem' }} onClick={() => setContextoModal(false)}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
+      {agregarTextoModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <form onSubmit={aplicarTextoVideo} style={{ background: '#18181b', padding: '2rem', borderRadius: 12, minWidth: 360 }}>
+            <h3 style={{ marginBottom: '1rem' }}>Añadir texto al video</h3>
+            <p style={{ fontSize: '0.875rem', color: '#71717a', marginBottom: '1rem' }}>El texto se mostrará centrado en el video (ej: 60% OFF, Nuevo producto).</p>
+            <input type="text" value={agregarTextoInput} onChange={(e) => setAgregarTextoInput(e.target.value)} placeholder="Texto a mostrar" required style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem' }} />
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="submit" className="primary" disabled={agregarTextoLoading || !agregarTextoInput.trim()}>{agregarTextoLoading ? 'Procesando...' : 'Añadir texto'}</button>
+              <button type="button" className="secondary" onClick={() => { setAgregarTextoModal(null); setAgregarTextoInput(''); }}>Cancelar</button>
             </div>
           </form>
         </div>
