@@ -1,0 +1,91 @@
+.client-detail {
+  max-width: 900px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: var(--melo-text, #2d2d2d);
+}
+
+.back-link:hover {
+  color: var(--melo-coral, #F06236);
+}
+
+.client-header {
+  margin-bottom: 24px;
+}
+
+.client-meta {
+  display: flex;
+  gap: 16px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.detail-card {
+  background: var(--melo-card, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--melo-border, #eee);
+  padding: 20px;
+}
+
+.detail-card.full {
+  grid-column: 1 / -1;
+}
+
+.detail-card h3 {
+  margin: 0 0 16px;
+  font-size: 1rem;
+}
+
+.vigencia {
+  color: var(--melo-coral, #F06236);
+  font-weight: 500;
+}
+
+.payments-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.payments-list li {
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+
+.btn-sm {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-row {
+  margin-bottom: 16px;
+}
+
+.form-row label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.form-row input,
+.form-row textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--melo-border, #eee);
+  border-radius: 8px;
+}

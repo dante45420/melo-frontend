@@ -1,0 +1,40 @@
+.accounting-page {
+  max-width: 1000px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.tabs button {
+  padding: 10px 20px;
+  border: 1px solid var(--melo-border, #eee);
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.tabs button.active {
+  background: var(--melo-orange, #FF8C42);
+  color: white;
+  border-color: var(--melo-orange, #FF8C42);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.accounting-section {
+  margin-bottom: 32px;
+}

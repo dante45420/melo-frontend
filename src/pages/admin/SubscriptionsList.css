@@ -1,0 +1,12 @@
+.subscriptions-page {
+  max-width: 900px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: rgba(255, 140, 66, 0.15);
+  color: var(--melo-coral, #F06236);
+}

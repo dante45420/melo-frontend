@@ -1,0 +1,122 @@
+/* Admin: variables para consistencia con marca */
+.admin-layout {
+  --melo-orange: #FF8C42;
+  --melo-coral: #F06236;
+  --melo-card: #fff;
+  --melo-border: #eee;
+  --melo-text: #2d2d2d;
+}
+
+.admin-layout .page-title { margin: 0 0 24px; font-size: 1.5rem; font-weight: 600; }
+.admin-layout .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.admin-layout .table-card { background: var(--melo-card); border-radius: 12px; border: 1px solid var(--melo-border); overflow: hidden; }
+.admin-layout .data-table { width: 100%; border-collapse: collapse; }
+.admin-layout .data-table th,
+.admin-layout .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--melo-border); }
+.admin-layout .data-table th { background: #f8f9fa; font-weight: 600; font-size: 0.85rem; }
+.admin-layout .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.admin-layout .btn-primary { background: linear-gradient(135deg, var(--melo-orange), var(--melo-coral)); color: white; }
+.admin-layout .btn-icon { padding: 8px; border: none; background: none; cursor: pointer; color: #666; }
+.admin-layout .btn-icon:hover { color: var(--melo-coral); }
+.admin-layout .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.admin-layout .modal { background: white; padding: 24px; border-radius: 12px; max-width: 420px; width: 90%; max-height: 90vh; overflow-y: auto; }
+.admin-layout .modal h2 { margin: 0 0 20px; font-size: 1.2rem; }
+.admin-layout .modal label { display: block; margin-bottom: 4px; font-size: 0.9rem; font-weight: 500; }
+.admin-layout .modal input,
+.admin-layout .modal select,
+.admin-layout .modal textarea { width: 100%; padding: 10px 12px; margin-bottom: 16px; border: 1px solid var(--melo-border); border-radius: 8px; }
+.admin-layout .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
+.admin-layout .page-loading { padding: 48px; text-align: center; color: #666; }
+
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: 240px;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 24px;
+}
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  background: var(--melo-card, #fff);
+  border-right: 1px solid var(--melo-border, #eee);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-brand {
+  padding: 24px;
+  border-bottom: 1px solid var(--melo-border, #eee);
+}
+
+.sidebar-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--melo-coral, #F06236);
+  display: block;
+}
+
+.sidebar-sublabel {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.sidebar-nav {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  color: var(--melo-text, #2d2d2d);
+  transition: background 0.2s;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 140, 66, 0.08);
+}
+
+.sidebar-link.active {
+  background: rgba(255, 140, 66, 0.12);
+  color: var(--melo-coral, #F06236);
+  font-weight: 500;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  background: var(--melo-card, #fff);
+  border-bottom: 1px solid var(--melo-border, #eee);
+}
+
+.header-logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--melo-text, #2d2d2d);
+  font-size: 0.9rem;
+}
+
+.header-logout:hover {
+  color: var(--melo-coral, #F06236);
+}

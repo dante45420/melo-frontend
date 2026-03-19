@@ -1,0 +1,19 @@
+.analytics-page {
+  max-width: 900px;
+}
+
+.chart-section {
+  margin-bottom: 40px;
+}
+
+.chart-section h2 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+}
+
+.chart-container {
+  background: var(--melo-card, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--melo-border, #eee);
+  padding: 20px;
+}

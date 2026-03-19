@@ -1,0 +1,168 @@
+.dashboard {
+  max-width: 1200px;
+}
+
+.dashboard-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--melo-text, #2d2d2d);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--melo-card, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--melo-border, #eee);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.metric-card.wide {
+  max-width: 320px;
+}
+
+.metric-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.metric-icon.cac { background: rgba(255, 140, 66, 0.15); color: var(--melo-orange, #FF8C42); }
+.metric-icon.churn { background: rgba(240, 98, 54, 0.15); color: var(--melo-coral, #F06236); }
+.metric-icon.income { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.metric-icon.expense { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.metric-icon.balance { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.metric-icon.clients { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+
+.metric-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.metric-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.metric-value.positive { color: #22c55e; }
+.metric-value.negative { color: #ef4444; }
+
+.metric-meta {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+.finanzas-acumulado {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.dashboard-loading,
+.dashboard-error {
+  padding: 48px;
+  text-align: center;
+  color: #666;
+}
+
+.admin-login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--melo-bg, #fafafa);
+}
+
+.admin-login-box {
+  width: 100%;
+  max-width: 360px;
+  padding: 40px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.admin-login-box h1 {
+  margin: 0 0 24px;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.admin-login-box label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.admin-login-box input {
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.admin-login-box input:focus {
+  outline: none;
+  border-color: var(--melo-coral, #F06236);
+}
+
+.admin-login-box button {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--melo-orange, #FF8C42), var(--melo-coral, #F06236));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-login-box button:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+.admin-login-box button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.admin-login-error {
+  padding: 12px;
+  margin-bottom: 16px;
+  background: #fee;
+  color: #c00;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
