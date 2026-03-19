@@ -43,23 +43,6 @@ export default function ClientDetail() {
     }
   };
 
-  const handleSubSubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-      await api.post(`/clients/${id}/subscriptions`, {
-        subscription_id: parseInt(fd.get('subscription_id'), 10),
-        start_date: fd.get('start_date'),
-        end_date: fd.get('end_date'),
-      });
-      setSubModal(false);
-      loadSubs();
-      loadClient();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
   const handleInfoSave = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -75,10 +58,18 @@ export default function ClientDetail() {
     }
   };
 
+  const toggleWebOnPlan = async (csId, enabled) => {
+    try {
+      await api.patch(`/clients/${id}/subscriptions/${csId}`, { web_enabled: enabled });
+      loadSubs();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   if (loading || !client) return <div className="page-loading">Cargando...</div>;
 
   const activePlan = subscriptions.find((s) => s.subscription_type === 'plan' && s.status === 'active');
-  const activeWeb = subscriptions.find((s) => ['web_design', 'web_maintenance'].includes(s.subscription_type) && s.status === 'active');
 
   return (
     <div className="client-detail">
@@ -99,11 +90,37 @@ export default function ClientDetail() {
         <section className="detail-card">
           <h3>Suscripciones</h3>
           <p><strong>Plan:</strong> {activePlan?.subscription_name || 'Sin plan'}</p>
-          <p><strong>Web:</strong> {activeWeb?.subscription_name || 'Sin web'}</p>
+          {activePlan?.delivery_contents && (
+            <p className="delivery-summary"><strong>Entrega semanal incluye:</strong> {activePlan.delivery_contents}</p>
+          )}
+          <p>
+            <strong>Página web:</strong>{' '}
+            {activePlan?.plan_web_active
+              ? activePlan.web_enabled
+                ? 'Sí (activa)'
+                : 'No (plan admite web; puedes activarla abajo)'
+              : 'Este plan no ofrece web'}
+          </p>
+          {activePlan?.web_enabled && activePlan.plan_web_active && (
+            <p className="web-prices">
+              Creación (ref. plan): ${activePlan.web_creation_price?.toLocaleString('es-CL')} · Mantención/mes: $
+              {activePlan.web_maintenance_monthly?.toLocaleString('es-CL')}
+            </p>
+          )}
           {activePlan && (
             <p className="vigencia">
               Vigencia plan hasta: {activePlan.end_date}
             </p>
+          )}
+          {activePlan && activePlan.plan_web_active && (
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={!!activePlan.web_enabled}
+                onChange={(e) => toggleWebOnPlan(activePlan.id, e.target.checked)}
+              />
+              Cliente con página web activa
+            </label>
           )}
           <button className="btn btn-primary btn-sm" onClick={() => setSubModal(true)}>
             <Plus size={16} />
@@ -191,6 +208,7 @@ export default function ClientDetail() {
           onSuccess={() => {
             setSubModal(false);
             loadSubs();
+            loadClient();
           }}
         />
       )}
@@ -202,18 +220,23 @@ function SubModal({ clientId, onClose, onSuccess }) {
   const [subs, setSubs] = useState([]);
 
   useEffect(() => {
-    api.get('/subscriptions').then(setSubs);
+    api.get('/subscriptions').then((list) => setSubs(list.filter((s) => s.type === 'plan')));
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    await api.post(`/clients/${clientId}/subscriptions`, {
-      subscription_id: parseInt(fd.get('subscription_id'), 10),
-      start_date: fd.get('start_date'),
-      end_date: fd.get('end_date'),
-    });
-    onSuccess();
+    try {
+      await api.post(`/clients/${clientId}/subscriptions`, {
+        subscription_id: parseInt(fd.get('subscription_id'), 10),
+        start_date: fd.get('start_date'),
+        end_date: fd.get('end_date'),
+        web_enabled: fd.get('web_enabled') === 'on',
+      });
+      onSuccess();
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -226,13 +249,20 @@ function SubModal({ clientId, onClose, onSuccess }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Asignar suscripción</h2>
         <form onSubmit={handleSubmit}>
-          <label>Suscripción *</label>
+          <label>Plan *</label>
           <select name="subscription_id" required>
             <option value="">Seleccionar</option>
             {subs.map((s) => (
-              <option key={s.id} value={s.id}>{s.name} - ${s.price_monthly?.toLocaleString('es-CL')}</option>
+              <option key={s.id} value={s.id}>
+                {s.name} — ${s.price_monthly?.toLocaleString('es-CL')}/mes
+                {s.web_active ? ' · admite web' : ''}
+              </option>
             ))}
           </select>
+          <label>
+            <input name="web_enabled" type="checkbox" />
+            Incluir página web (según precios del plan)
+          </label>
           <label>Inicio</label>
           <input name="start_date" type="date" defaultValue={today} required />
           <label>Fin</label>

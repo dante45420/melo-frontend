@@ -53,6 +53,13 @@
   color: #666;
 }
 
+.delivery-desc {
+  font-size: 0.85rem;
+  color: #444;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
 .btn-icon.complete {
   color: #22c55e;
 }

@@ -101,6 +101,9 @@ export default function DeliveriesPage() {
                 <div>
                   <strong>{d.client_name || 'Empresa (general)'}</strong>
                   <span className="due-date">{d.due_date}</span>
+                  {d.description && (
+                    <div className="delivery-desc">{d.description}</div>
+                  )}
                 </div>
                 <button
                   className="btn-icon complete"
@@ -121,6 +124,9 @@ export default function DeliveriesPage() {
                 <div>
                   <strong>{d.client_name || 'Empresa'}</strong>
                   <span className="due-date">{d.due_date}</span>
+                  {d.description && (
+                    <div className="delivery-desc">{d.description}</div>
+                  )}
                 </div>
               </li>
             ))}
