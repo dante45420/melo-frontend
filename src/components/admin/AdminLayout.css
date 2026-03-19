@@ -19,6 +19,19 @@
 @keyframes admin-spin {
   to { transform: rotate(360deg); }
 }
+.admin-auth-retry {
+  margin-top: 12px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--melo-orange, #FF8C42), var(--melo-coral, #F06236));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.admin-auth-retry:hover {
+  opacity: 0.95;
+}
 
 .admin-layout {
   --melo-orange: #FF8C42;
