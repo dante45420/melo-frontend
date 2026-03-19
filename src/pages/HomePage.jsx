@@ -127,7 +127,7 @@ export default function HomePage() {
           <h2 className="cta-title">Tu primer mes,<br /><span className="grad-text">con 50% de descuento.</span></h2>
           <p className="cta-sub">Sin riesgo. Sin contrato. Sin tarjeta de crédito para empezar.<br /><strong>Prueba Melo durante 30 días.</strong></p>
           <div className="cta-actions">
-            <WhatsAppCTA variant="primary">Quiero empezar</WhatsAppCTA>
+            <WhatsAppCTA variant="primary" className="btn-cta-primary">Quiero empezar</WhatsAppCTA>
             <Link to="/planes" className="btn-outline">Ver todos los planes</Link>
           </div>
           <p className="cta-micro">Primer mes con <span>50% off</span> · Sin tarjeta · Cancela cuando quieras</p>
@@ -145,11 +145,11 @@ export default function HomePage() {
               <div className="compare-item-label">Precio mensual</div>
               <div className="compare-item-cols">
                 <div className="compare-item-row">
-                  <span className="compare-item-tag">Agencia</span>
+                  <span className="compare-col-header compare-col-header--agencia">Agencia</span>
                   <span className="compare-item-agencia">$300.000 – $800.000</span>
                 </div>
                 <div className="compare-item-row compare-item-row--melo">
-                  <span className="compare-item-tag">Melo</span>
+                  <span className="compare-col-header compare-col-header--melo">Melo</span>
                   <span className="compare-item-melo">$39.900 – $119.900</span>
                 </div>
               </div>
@@ -158,11 +158,11 @@ export default function HomePage() {
               <div className="compare-item-label">Contrato mínimo</div>
               <div className="compare-item-cols">
                 <div className="compare-item-row">
-                  <span className="compare-item-tag">Agencia</span>
+                  <span className="compare-col-header compare-col-header--agencia">Agencia</span>
                   <span className="compare-item-agencia">3 a 12 meses</span>
                 </div>
                 <div className="compare-item-row compare-item-row--melo">
-                  <span className="compare-item-tag">Melo</span>
+                  <span className="compare-col-header compare-col-header--melo">Melo</span>
                   <span className="compare-item-melo"><CheckCircle size={16} /> Mes a mes</span>
                 </div>
               </div>
@@ -171,11 +171,11 @@ export default function HomePage() {
               <div className="compare-item-label">Primera entrega</div>
               <div className="compare-item-cols">
                 <div className="compare-item-row">
-                  <span className="compare-item-tag">Agencia</span>
+                  <span className="compare-col-header compare-col-header--agencia">Agencia</span>
                   <span className="compare-item-agencia">2 a 4 semanas</span>
                 </div>
                 <div className="compare-item-row compare-item-row--melo">
-                  <span className="compare-item-tag">Melo</span>
+                  <span className="compare-col-header compare-col-header--melo">Melo</span>
                   <span className="compare-item-melo"><CheckCircle size={16} /> 48 horas</span>
                 </div>
               </div>
@@ -184,11 +184,11 @@ export default function HomePage() {
               <div className="compare-item-label">Tú apruebas antes de publicar</div>
               <div className="compare-item-cols">
                 <div className="compare-item-row">
-                  <span className="compare-item-tag">Agencia</span>
+                  <span className="compare-col-header compare-col-header--agencia">Agencia</span>
                   <span className="compare-item-agencia">Depende del contrato</span>
                 </div>
                 <div className="compare-item-row compare-item-row--melo">
-                  <span className="compare-item-tag">Melo</span>
+                  <span className="compare-col-header compare-col-header--melo">Melo</span>
                   <span className="compare-item-melo"><CheckCircle size={16} /> Siempre</span>
                 </div>
               </div>
@@ -197,11 +197,11 @@ export default function HomePage() {
               <div className="compare-item-label">Reporte mensual de métricas</div>
               <div className="compare-item-cols">
                 <div className="compare-item-row">
-                  <span className="compare-item-tag">Agencia</span>
+                  <span className="compare-col-header compare-col-header--agencia">Agencia</span>
                   <span className="compare-item-agencia">A veces, con costo extra</span>
                 </div>
                 <div className="compare-item-row compare-item-row--melo">
-                  <span className="compare-item-tag">Melo</span>
+                  <span className="compare-col-header compare-col-header--melo">Melo</span>
                   <span className="compare-item-melo"><CheckCircle size={16} /> Incluido</span>
                 </div>
               </div>

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, Globe, CheckCircle, Minus } from 'lucide-react';
 import WhatsAppCTA from '../components/WhatsAppCTA';
@@ -56,6 +57,10 @@ const PLANES = [
 ];
 
 export default function PlanesPage() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="planes">
       <section className="plans-hero">
