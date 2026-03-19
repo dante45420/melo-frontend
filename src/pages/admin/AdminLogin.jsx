@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import '../../components/admin/AdminLayout.css';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
@@ -13,7 +14,9 @@ export default function AdminLogin() {
 
   useEffect(() => {
     fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
-      .then((res) => { if (res.ok) navigate('/admin', { replace: true }); })
+      .then((res) => {
+        if (res.ok) navigate('/admin', { replace: true });
+      })
       .catch(() => {})
       .finally(() => setChecking(false));
   }, [navigate]);
@@ -42,7 +45,16 @@ export default function AdminLogin() {
     }
   };
 
-  if (checking) return null;
+  if (checking) {
+    return (
+      <div className="admin-login-page">
+        <div className="admin-auth-loading" style={{ minHeight: '50vh' }}>
+          <div className="admin-auth-spinner" />
+          <p>Cargando...</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="admin-login-page">
       <div className="admin-login-box">
