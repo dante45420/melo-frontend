@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../../api/adminClient';
 import { ArrowLeft, Plus, CreditCard } from 'lucide-react';
+import ClientCustomFields from '../../components/admin/ClientCustomFields';
 import './ClientDetail.css';
 
 export default function ClientDetail() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
-  const [info, setInfo] = useState(null);
   const [payments, setPayments] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,12 +15,11 @@ export default function ClientDetail() {
   const [subModal, setSubModal] = useState(false);
 
   const loadClient = () => api.get(`/clients/${id}`).then(setClient);
-  const loadInfo = () => api.get(`/clients/${id}/info`).then(setInfo);
   const loadPayments = () => api.get(`/clients/${id}/payments`).then(setPayments);
   const loadSubs = () => api.get(`/clients/${id}/subscriptions`).then(setSubscriptions);
 
   useEffect(() => {
-    Promise.all([loadClient(), loadInfo(), loadPayments(), loadSubs()])
+    Promise.all([loadClient(), loadPayments(), loadSubs()])
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -65,15 +64,12 @@ export default function ClientDetail() {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      await api.patch(`/clients/${id}/info`, {
-        value_proposition_id: fd.get('value_proposition_id') ? parseInt(fd.get('value_proposition_id'), 10) : null,
-        company_info_id: fd.get('company_info_id') ? parseInt(fd.get('company_info_id'), 10) : null,
-        previous_results_id: fd.get('previous_results_id') ? parseInt(fd.get('previous_results_id'), 10) : null,
+      await api.patch(`/clients/${id}`, {
         posts_liked: fd.get('posts_liked') || null,
         posts_disliked: fd.get('posts_disliked') || null,
         notes: fd.get('notes') || null,
       });
-      loadInfo();
+      loadClient();
     } catch (err) {
       alert(err.message);
     }
@@ -132,19 +128,26 @@ export default function ClientDetail() {
       </div>
 
       <section className="detail-card full">
+        <ClientCustomFields clientId={id} />
+      </section>
+
+      <section className="detail-card full">
         <h3>Información del cliente</h3>
-        <form onSubmit={handleInfoSave}>
+        <form
+          key={`info-${client.posts_liked ?? ''}-${client.posts_disliked ?? ''}-${client.notes ?? ''}`}
+          onSubmit={handleInfoSave}
+        >
           <div className="form-row">
             <label>Posts que le gustaron</label>
-            <input name="posts_liked" defaultValue={info?.posts_liked} placeholder="Posts que le gustaron" />
+            <input name="posts_liked" defaultValue={client?.posts_liked ?? ''} placeholder="Posts que le gustaron" />
           </div>
           <div className="form-row">
             <label>Posts que no le gustaron</label>
-            <input name="posts_disliked" defaultValue={info?.posts_disliked} />
+            <input name="posts_disliked" defaultValue={client?.posts_disliked ?? ''} />
           </div>
           <div className="form-row">
             <label>Notas</label>
-            <textarea name="notes" defaultValue={info?.notes} rows={3} />
+            <textarea name="notes" defaultValue={client?.notes ?? ''} rows={3} />
           </div>
           <button type="submit" className="btn btn-primary">Guardar info</button>
         </form>

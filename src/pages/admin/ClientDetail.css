@@ -89,3 +89,64 @@
   border: 1px solid var(--melo-border, #eee);
   border-radius: 8px;
 }
+
+.client-custom-fields__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.client-custom-fields__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.client-custom-fields__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.client-custom-fields__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.client-custom-fields__row textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--melo-border, #eee);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.client-custom-fields__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.client-custom-fields__label-row label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.btn-icon.danger {
+  color: #c62828;
+}
+
+.btn-icon.danger:hover {
+  color: #b71c1c;
+  background: rgba(198, 40, 40, 0.08);
+}
+
+.muted {
+  color: #666;
+  font-size: 0.9rem;
+}
