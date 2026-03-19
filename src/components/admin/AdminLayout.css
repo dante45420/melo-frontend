@@ -1,4 +1,25 @@
 /* Admin: variables para consistencia con marca */
+.admin-auth-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--melo-text, #2d2d2d);
+}
+.admin-auth-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--melo-border, #eee);
+  border-top-color: var(--melo-coral, #F06236);
+  border-radius: 50%;
+  animation: admin-spin 0.8s linear infinite;
+}
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
+}
+
 .admin-layout {
   --melo-orange: #FF8C42;
   --melo-coral: #F06236;
